@@ -1,65 +1,113 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useChart } from "./hooks/use-deezer";
+import { Shelf } from "./components/shelf";
+import { MediaCard } from "./components/media-card";
+import { Skeleton } from "./components/ui/skeleton";
+import { usePlayerStore } from "./store/player-store";
+import { toPlayableTrack } from "./types/deezer";
+import { TrackRow } from "./components/track-row";
+
+function ShelfSkeleton() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="w-40 sm:w-44 shrink-0 space-y-3">
+          <Skeleton className="aspect-square w-full rounded-lg" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      ))}
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const { data, isLoading, isError } = useChart();
+  const playQueue = usePlayerStore((s) => s.playQueue);
+
+  const topTracks = data?.tracks?.data ?? [];
+  const playableTracks = topTracks.map(toPlayableTrack);
+
+  return (
+    <div className="flex flex-col gap-10 pt-4">
+      <section>
+        <h1 className="font-display text-3xl text-white">Good listening</h1>
+        <p className="mt-1 text-neutral-400">
+          Global charts, pulled live — nothing here comes from a database.
+        </p>
+      </section>
+
+      {isError && (
+        <p className="text-sm text-red-400">
+          Couldn&apos;t reach the catalog right now. Try again in a moment.
+        </p>
+      )}
+
+      <Shelf title="Top tracks right now">
+        {isLoading
+          ? <ShelfSkeleton />
+          : data?.tracks.data.slice(0, 12).map((t, i) => (
+              <MediaCard
+                key={t.id}
+                href={`/album/${t.album.id}`}
+                title={t.title}
+                subtitle={t.artist.name}
+                image={t.album.cover_medium ?? "/placeholder-cover.svg"}
+                priority={i === 0}
+                onPlay={() => {
+                  const idx = playableTracks.findIndex((pt) => pt.id === t.id);
+                  playQueue(playableTracks, idx === -1 ? 0 : idx);
+                }}
+              />
+            ))}
+      </Shelf>
+
+      <Shelf title="Popular albums">
+        {isLoading
+          ? <ShelfSkeleton />
+          : data?.albums.data.slice(0, 12).map((a) => (
+              <MediaCard
+                key={a.id}
+                href={`/album/${a.id}`}
+                title={a.title}
+                subtitle={a.artist?.name}
+                image={a.cover_medium ?? "/placeholder-cover.svg"}
+              />
+            ))}
+      </Shelf>
+
+      <Shelf title="Artists on the rise">
+        {isLoading
+          ? <ShelfSkeleton />
+          : data?.artists.data.slice(0, 12).map((a) => (
+              <MediaCard
+                key={a.id}
+                href={`/artist/${a.id}`}
+                title={a.name}
+                subtitle="Artist"
+                image={a.picture_medium ?? "/placeholder-cover.svg"}
+                round
+              />
+            ))}
+      </Shelf>
+
+      <section className="flex flex-col gap-2 pb-4">
+        <h2 className="font-display text-xl text-white">Chart, in order</h2>
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {playableTracks.slice(0, 10).map((track, i) => (
+              <TrackRow key={track.id} track={track} index={i} queue={playableTracks} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
