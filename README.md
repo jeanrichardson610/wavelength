@@ -4,9 +4,6 @@
   <p align="center">
   <img src="./public/preview.png" width="900"/>
   </p>
-  <p align="center">
-  <img src="./public/preview2.png" width="900"/>
-  </p>
 
   <h1>🎧 Wavelength</h1>
 
